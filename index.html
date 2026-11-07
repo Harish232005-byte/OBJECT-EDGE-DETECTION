@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edge-Based Object Boundary Detection | Web Application</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Application Stylesheet -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <!-- App Header -->
+    <header class="app-header">
+        <div class="brand-section">
+            <div class="brand-icon">
+                <i class="fa-solid fa-draw-polygon fa-lg"></i>
+            </div>
+            <div>
+                <h1 class="brand-title">Edge-Based Object Boundary Detection</h1>
+                <p class="brand-subtitle">Automated Object Boundary Extraction & Shape Representation Pipeline</p>
+            </div>
+        </div>
+
+        <div class="header-status">
+            <div class="badge badge-engine">
+                <span class="badge-pulse"></span>
+                <span id="engineBadgeText">Loading Engine...</span>
+            </div>
+            <select id="engineSelect" title="Select Computation Engine" style="padding: 0.35rem 0.6rem; font-size: 0.75rem;">
+                <option value="python_api">Python OpenCV (Flask cv2)</option>
+                <option value="opencv_js">Browser OpenCV.js</option>
+            </select>
+            <button class="btn-secondary" id="btnHelp" onclick="document.getElementById('helpModal').style.display='flex';" style="padding: 0.35rem 0.75rem; font-size: 0.78rem;">
+                <i class="fa-solid fa-circle-question"></i> Help & Theory
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="app-container">
+
+        <!-- Left Controls Sidebar -->
+        <aside class="control-sidebar">
+
+            <!-- Image Input Section -->
+            <section class="card-section">
+                <div class="section-header">
+                    <span class="section-title"><i class="fa-solid fa-image"></i> Input Image</span>
+                    <button class="btn-secondary" id="btnOpenWebcam" style="padding: 0.25rem 0.5rem; font-size: 0.7rem;">
+                        <i class="fa-solid fa-camera"></i> Camera
+                    </button>
+                </div>
+
+                <div class="dropzone" id="dropzone">
+                    <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                    <i class="fa-solid fa-cloud-arrow-up dropzone-icon"></i>
+                    <p class="dropzone-text">Drag & drop image here or <span class="dropzone-browse">Browse</span></p>
+                    <p style="font-size: 0.68rem; color: var(--text-muted); margin-top: 4px;">Supports PNG, JPG, JPEG, WEBP</p>
+                </div>
+
+                <!-- Preloaded Benchmark Gallery -->
+                <div style="margin-top: 0.75rem;">
+                    <div style="font-size: 0.75rem; color: var(--accent-cyan); font-weight: 700; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.35rem;">
+                        <i class="fa-solid fa-shapes"></i> Example Images (Click to Test):
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem;">
+                        <button class="btn-sample" data-sample="sample_motorcycle.png" title="Sports Motorcycle">🏍️ Bike</button>
+                        <button class="btn-sample" data-sample="sample_supercar.png" title="Sports Car">🏎️ Car</button>
+                        <button class="btn-sample" data-sample="sample_airplane.png" title="Airplane">✈️ Plane</button>
+                        <button class="btn-sample" data-sample="sample_apple.png" title="Red Apple">🍎 Apple</button>
+                        <button class="btn-sample" data-sample="sample_coffee.png" title="Coffee Mug">☕ Cup</button>
+                        <button class="btn-sample" data-sample="sample_smartwatch.png" title="Smartwatch">⌚ Watch</button>
+                        <button class="btn-sample" data-sample="sample_coins.png" title="Coins and tokens">🪙 Coins</button>
+                        <button class="btn-sample" data-sample="sample_mechanical.png" title="Industrial gears and tools">⚙️ Gears</button>
+                        <button class="btn-sample" data-sample="sample_geometric.png" title="Geometric Shapes">🔷 Shapes</button>
+                    </div>
+                </div>
+
+                <!-- Scene Tuning Presets -->
+                <div style="margin-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 0.6rem;">
+                    <div style="font-size: 0.72rem; color: var(--accent-cyan); font-weight: 700; margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.35rem;">
+                        <i class="fa-solid fa-sliders"></i> Scene Presets (Auto-Tuning):
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem;">
+                        <button class="btn-sample btn-preset" data-preset="clean">Clean / Studio</button>
+                        <button class="btn-sample btn-preset" data-preset="complex" title="For vehicles, grass, nature">Complex / Grass</button>
+                        <button class="btn-sample btn-preset" data-preset="faint" title="For dark shadows or low contrast">Faint Shadows</button>
+                        <button class="btn-sample btn-preset" data-preset="coins">Coins / Parts</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- STEP 1: Grayscale & Preprocessing -->
+            <section class="card-section">
+                <div class="section-header">
+                    <span class="section-title"><span class="step-num">1</span> Convert to Grayscale</span>
+                </div>
+                <div class="control-group">
+                    <div class="label-row">
+                        <span>Noise Reduction (Gaussian Blur):</span>
+                        <span class="val-badge" id="blurKsizeVal">5</span>
+                    </div>
+                    <input type="range" id="blurKsize" min="1" max="15" step="2" value="5">
+                    <span style="font-size: 0.68rem; color: var(--text-muted);">Reduces high-frequency image noise for clean edge borders</span>
+                </div>
+
+                <div class="control-group" style="margin-top: 0.5rem;">
+                    <label class="checkbox-row">
+                        <input type="checkbox" id="enableClahe">
+                        <span>Shadow Enhancer (CLAHE)</span>
+                    </label>
+                    <span style="font-size: 0.68rem; color: var(--text-muted);">Reveals dark wheels, shadows, and faint edges in dark scenes</span>
+                </div>
+            </section>
+
+            <!-- STEP 2: Sobel and Canny Edge Detection -->
+            <section class="card-section">
+                <div class="section-header">
+                    <span class="section-title"><span class="step-num">2</span> Edge Detection</span>
+                </div>
+
+                <div class="control-group">
+                    <div class="label-row">
+                        <span>Detection Operator:</span>
+                    </div>
+                    <select id="edgeMethod">
+                        <option value="canny">Canny Edge Detection (Optimal)</option>
+                        <option value="sobel">Sobel Gradient Magnitude</option>
+                        <option value="both">Combined (Sobel + Canny)</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <div class="label-row">
+                        <span>Canny Low Threshold:</span>
+                        <span class="val-badge" id="cannyLowVal">50</span>
+                    </div>
+                    <input type="range" id="cannyLow" min="5" max="200" step="5" value="50">
+                </div>
+
+                <div class="control-group">
+                    <div class="label-row">
+                        <span>Canny High Threshold:</span>
+                        <span class="val-badge" id="cannyHighVal">150</span>
+                    </div>
+                    <input type="range" id="cannyHigh" min="20" max="255" step="5" value="150">
+                </div>
+
+                <div class="control-group">
+                    <div class="label-row">
+                        <span>Sobel Kernel Size (ksize):</span>
+                        <span class="val-badge" id="sobelKsizeVal">3</span>
+                    </div>
+                    <input type="range" id="sobelKsize" min="1" max="7" step="2" value="3">
+                </div>
+
+                <div class="control-group">
+                    <div class="label-row">
+                        <span>Edge Gap Closure (Morphology):</span>
+                        <span class="val-badge" id="morphDilationVal">2</span>
+                    </div>
+                    <input type="range" id="morphDilation" min="0" max="6" step="1" value="2">
+                    <span style="font-size: 0.68rem; color: var(--text-muted);">Bridges faint edge gaps for continuous, perfect detection</span>
+                </div>
+            </section>
+
+            <!-- STEP 3: Contour Extraction & Shape Representation -->
+            <section class="card-section">
+                <div class="section-header">
+                    <span class="section-title"><span class="step-num">3</span> Extract Contours & Shapes</span>
+                </div>
+
+                <div class="control-group">
+                    <div class="label-row">
+                        <span>Min Object Area (Filter Noise):</span>
+                        <span class="val-badge" id="minAreaVal">150</span>
+                    </div>
+                    <input type="range" id="minArea" min="20" max="2000" step="10" value="150">
+                </div>
+
+                <div class="control-group">
+                    <div class="label-row">
+                        <span>Douglas-Peucker Epsilon (&epsilon;%):</span>
+                        <span class="val-badge" id="approxEpsPctVal">2.0</span>
+                    </div>
+                    <input type="range" id="approxEpsPct" min="0.5" max="6.0" step="0.5" value="2.0">
+                    <span style="font-size: 0.68rem; color: var(--text-muted);">Polygonal contour shape approximation factor</span>
+                </div>
+            </section>
+
+            <!-- STEP 4: Draw Object Boundaries -->
+            <section class="card-section">
+                <div class="section-header">
+                    <span class="section-title"><span class="step-num">4</span> Draw Object Boundaries</span>
+                </div>
+
+                <div class="control-group">
+                    <div class="label-row">
+                        <span>Boundary Color:</span>
+                        <input type="color" id="boundaryColor" value="#00e5ff" style="width: 28px; height: 24px; border:none; background:transparent; cursor:pointer;">
+                    </div>
+                    <div class="color-swatches">
+                        <div class="swatch active" style="background: #00e5ff;" data-color="#00e5ff" title="Neon Cyan"></div>
+                        <div class="swatch" style="background: #10b981;" data-color="#10b981" title="Emerald Green"></div>
+                        <div class="swatch" style="background: #f59e0b;" data-color="#f59e0b" title="Amber Orange"></div>
+                        <div class="swatch" style="background: #ef4444;" data-color="#ef4444" title="Crimson Red"></div>
+                        <div class="swatch" style="background: #a855f7;" data-color="#a855f7" title="Electric Purple"></div>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <div class="label-row">
+                        <span>Boundary Line Thickness:</span>
+                        <span class="val-badge" id="lineThicknessVal">3</span>
+                    </div>
+                    <input type="range" id="lineThickness" min="1" max="8" step="1" value="3">
+                </div>
+
+                <div class="control-group" style="gap: 0.5rem; margin-top: 0.5rem;">
+                    <label class="checkbox-row">
+                        <input type="checkbox" id="drawLabels" checked>
+                        <span>Display Shape Labels & IDs</span>
+                    </label>
+                    <label class="checkbox-row">
+                        <input type="checkbox" id="drawBbox" checked>
+                        <span>Overlay Bounding Boxes</span>
+                    </label>
+                    <label class="checkbox-row">
+                        <input type="checkbox" id="drawCentroids" checked>
+                        <span>Mark Shape Centroids (Center)</span>
+                    </label>
+                </div>
+            </section>
+
+        </aside>
+
+        <!-- Right Workspace Area -->
+        <main class="workspace-area">
+
+            <!-- View Navigation Tabs -->
+            <div class="view-tabs">
+                <button class="tab-btn active" data-tab="pipeline">
+                    <i class="fa-solid fa-network-wired"></i> 4-Stage Pipeline Grid
+                </button>
+                <button class="tab-btn" data-tab="single">
+                    <i class="fa-solid fa-expand"></i> Final Result
+                </button>
+                <button class="tab-btn" data-tab="comparison">
+                    <i class="fa-solid fa-left-right"></i> Before / After Split
+                </button>
+                <button class="tab-btn" data-tab="data">
+                    <i class="fa-solid fa-table-list"></i> Shape Inventory & Table
+                </button>
+            </div>
+
+            <!-- Stats Bar -->
+            <div class="stats-row">
+                <div class="stat-card">
+                    <span class="stat-card-label">Objects Identified</span>
+                    <span class="stat-card-value" id="statTotalObjects">0</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-card-label">Avg. Boundary Area</span>
+                    <span class="stat-card-value" id="statAvgArea">0 px²</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-card-label">Avg. Perimeter</span>
+                    <span class="stat-card-value" id="statAvgPerimeter">0 px</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-card-label">Dominant Shape</span>
+                    <span class="stat-card-value" id="statDominantShape">-</span>
+                </div>
+            </div>
+
+            <!-- TAB 1: 4-STAGE PIPELINE GRID -->
+            <div id="tabPipelineView">
+                <div class="pipeline-grid">
+                    <!-- Step 1 Card -->
+                    <div class="step-card">
+                        <div class="step-card-header">
+                            <span class="step-card-title"><span class="step-num">1</span> Grayscale Conversion</span>
+                            <span class="step-card-desc">Luminosity Matrix + Gaussian Blur</span>
+                        </div>
+                        <div class="canvas-container">
+                            <img id="imgStep1" alt="Grayscale conversion preview">
+                        </div>
+                    </div>
+
+                    <!-- Step 2 Card -->
+                    <div class="step-card">
+                        <div class="step-card-header">
+                            <span class="step-card-title"><span class="step-num">2</span> Sobel & Canny Edges</span>
+                            <div style="display: flex; gap: 0.6rem; font-size: 0.72rem;">
+                                <label style="cursor: pointer;"><input type="radio" name="step2View" value="canny" checked> Canny</label>
+                                <label style="cursor: pointer;"><input type="radio" name="step2View" value="sobel"> Sobel</label>
+                            </div>
+                        </div>
+                        <div class="canvas-container">
+                            <img id="imgStep2" alt="Edge detection preview">
+                        </div>
+                    </div>
+
+                    <!-- Step 3 Card -->
+                    <div class="step-card">
+                        <div class="step-card-header">
+                            <span class="step-card-title"><span class="step-num">3</span> Extracted Contours</span>
+                            <span class="step-card-desc">Shape Representation & Centroids</span>
+                        </div>
+                        <div class="canvas-container">
+                            <img id="imgStep3" alt="Extracted contours preview">
+                        </div>
+                    </div>
+
+                    <!-- Step 4 Card -->
+                    <div class="step-card">
+                        <div class="step-card-header">
+                            <span class="step-card-title"><span class="step-num">4</span> Boundary-Detected Image</span>
+                            <span class="step-card-desc">Highlighted Object Boundaries</span>
+                        </div>
+                        <div class="canvas-container">
+                            <img id="imgStep4" alt="Final boundary detected image">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: SINGLE FULL VIEW -->
+            <div id="tabSingleView" style="display: none;">
+                <div class="step-card" style="min-height: 520px;">
+                    <div class="step-card-header">
+                        <span class="step-card-title"><i class="fa-solid fa-bullseye"></i> High-Resolution Boundary View</span>
+                        <span class="step-card-desc">Full Object Boundaries Overlay</span>
+                    </div>
+                    <div class="canvas-container" style="min-height: 480px;">
+                        <img id="imgSingle" alt="High resolution boundary view" style="max-height: 600px;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: COMPARISON VIEW -->
+            <div id="tabComparisonView" style="display: none;">
+                <div class="comparison-container">
+                    <div class="comparison-wrapper">
+                        <!-- Background: Detected Boundaries Image -->
+                        <img id="compAfter" class="comparison-image" alt="Boundary output">
+                        <!-- Foreground Overlay: Original Image -->
+                        <div id="compOverlay" class="comparison-overlay">
+                            <img id="compBefore" alt="Original image">
+                        </div>
+                        <!-- Slider divider handle -->
+                        <div id="compSlider" class="comparison-slider-handle">
+                            <div class="comparison-handle-knob">
+                                <i class="fa-solid fa-arrows-left-right"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p style="text-align: center; color: var(--text-muted); font-size: 0.75rem; margin-top: 0.5rem;">
+                    Drag the cyan divider horizontally to inspect Original Image (Left) vs Detected Boundaries (Right)
+                </p>
+            </div>
+
+            <!-- TAB 4: SHAPE INVENTORY & DATA TABLE -->
+            <div id="tabDataView" style="display: none;">
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Object ID</th>
+                                <th>Detected Shape</th>
+                                <th>Area (px²)</th>
+                                <th>Perimeter (px)</th>
+                                <th>Circularity</th>
+                                <th>Vertices</th>
+                                <th>Centroid (X, Y)</th>
+                                <th>Dimensions (W &times; H)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="objectsTableBody">
+                            <!-- Populated dynamically via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Bottom Action Toolbar -->
+            <div class="action-toolbar">
+                <button class="btn-secondary" id="btnExportCSV">
+                    <i class="fa-solid fa-file-csv"></i> Export Metrics (CSV)
+                </button>
+                <button class="btn-primary" id="btnDownloadBoundary">
+                    <i class="fa-solid fa-download"></i> Download Boundary Image (PNG)
+                </button>
+            </div>
+
+        </main>
+
+    </main>
+
+    <!-- Webcam Capture & Live Detection Modal -->
+    <div class="modal-overlay" id="webcamModal">
+        <div class="modal-content" style="max-width: 860px;">
+            <div class="modal-header">
+                <div>
+                    <h3 style="font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fa-solid fa-camera"></i> Live Camera & Boundary Detection
+                    </h3>
+                    <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">
+                        Stream live video, detect boundaries in real-time, or capture a frame for full analysis
+                    </p>
+                </div>
+                <button class="modal-close" id="btnCloseWebcam">&times;</button>
+            </div>
+
+            <!-- Error / Warning Banner -->
+            <div id="cameraErrorBanner" style="display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; border-radius: var(--radius-sm); padding: 0.75rem 1rem; margin-bottom: 0.85rem; font-size: 0.82rem; color: #fca5a5;">
+                <div style="font-weight: 700; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.4rem;">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Camera Access Issue
+                </div>
+                <div id="cameraErrorMessage">Could not access camera.</div>
+            </div>
+
+            <!-- Camera Controls Bar -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <label style="font-size: 0.78rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.35rem;">
+                        <i class="fa-solid fa-video"></i> Device:
+                    </label>
+                    <select id="cameraSelect" style="max-width: 260px; font-size: 0.75rem; padding: 0.3rem 0.5rem;">
+                        <option value="">Default Camera</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+                    <button class="btn-secondary" id="btnToggleLiveDetect" style="font-size: 0.78rem; padding: 0.35rem 0.8rem;">
+                        <i class="fa-solid fa-play"></i> Start Live Detection
+                    </button>
+                    <span id="liveStatusBadge" class="badge" style="background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; color: #34d399; display: none; font-size: 0.72rem;">
+                        <span class="badge-pulse" style="background: #10b981;"></span> Live (15 FPS)
+                    </span>
+                </div>
+            </div>
+
+            <!-- Camera View Container -->
+            <div style="position: relative; background: #000; border-radius: var(--radius-md); overflow: hidden; min-height: 340px; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 20px rgba(0,0,0,0.8);">
+                <video id="webcamVideo" autoplay playsinline muted style="width: 100%; max-height: 440px; object-fit: contain;"></video>
+                <canvas id="webcamLiveCanvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; display: none;"></canvas>
+
+                <!-- Live Overlay Info -->
+                <div id="liveOverlayInfo" style="position: absolute; top: 12px; left: 12px; display: none; gap: 0.5rem; z-index: 10;">
+                    <div style="background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(6px); border: 1px solid var(--border-color); padding: 0.3rem 0.6rem; border-radius: var(--radius-sm); font-size: 0.72rem; color: var(--accent-cyan); font-family: var(--font-mono);">
+                        Objects: <span id="liveObjCount" style="font-weight: 700;">0</span>
+                    </div>
+                    <div style="background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(6px); border: 1px solid var(--border-color); padding: 0.3rem 0.6rem; border-radius: var(--radius-sm); font-size: 0.72rem; color: var(--accent-emerald); font-family: var(--font-mono);">
+                        FPS: <span id="liveFpsCount" style="font-weight: 700;">--</span>
+                    </div>
+                </div>
+
+                <!-- Video Loading Spinner -->
+                <div id="cameraLoadingSpinner" style="display: none; position: absolute; flex-direction: column; align-items: center; gap: 0.5rem; color: var(--accent-cyan); font-size: 0.85rem;">
+                    <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
+                    <span>Starting camera feed...</span>
+                </div>
+            </div>
+
+            <!-- Modal Bottom Toolbar -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+                <span style="font-size: 0.72rem; color: var(--text-muted);">
+                    Hold an object in front of the camera against a contrasting background for best boundary detection.
+                </span>
+                <div style="display: flex; gap: 0.75rem;">
+                    <button class="btn-secondary" id="btnRestartCam" style="padding: 0.5rem 0.9rem; font-size: 0.8rem;">
+                        <i class="fa-solid fa-rotate-right"></i> Reconnect
+                    </button>
+                    <button class="btn-primary" id="btnCaptureWebcam" style="padding: 0.5rem 1.1rem; font-size: 0.82rem;">
+                        <i class="fa-solid fa-camera"></i> Capture Frame & Analyze
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help & Theory Modal -->
+    <div class="modal-overlay" id="helpModal">
+        <div class="modal-content" style="max-width: 700px; max-height: 85vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-graduation-cap"></i> Project Concepts & Algorithm Steps</h3>
+                <button class="modal-close" onclick="document.getElementById('helpModal').style.display='none';">&times;</button>
+            </div>
+            <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; display: flex; flex-direction: column; gap: 0.85rem;">
+                <p><strong style="color: var(--accent-cyan);">Objective:</strong> Accurately identify and highlight object boundaries from 2D images.</p>
+                <p><strong style="color: var(--accent-cyan);">Concepts Used:</strong> Edge detection, gradient operators, contour extraction, shape representation.</p>
+
+                <h4 style="color: #fff; margin-top: 0.4rem;">4-Step Execution Pipeline:</h4>
+                <ol style="padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.4rem;">
+                    <li><strong>1. Convert Image to Grayscale:</strong> Eliminates chromatic noise and simplifies the pixel matrix from RGB into a 1-channel luminance map: \(Y = 0.299R + 0.587G + 0.114B\). Gaussian smoothing is applied to suppress high-frequency sensor noise.</li>
+                    <li><strong>2. Apply Sobel & Canny Edge Detection:</strong>
+                        <ul style="padding-left: 1rem; margin-top: 0.2rem;">
+                            <li><strong>Sobel Operator:</strong> Convolves the image with horizontal (\(G_x\)) and vertical (\(G_y\)) derivative kernels to compute gradient magnitude \(\nabla I = \sqrt{G_x^2 + G_y^2}\).</li>
+                            <li><strong>Canny Edge Detector:</strong> Performs gradient computation, non-maximum suppression (thinning edges to 1-pixel width), and hysteresis thresholding (\(T_{\text{low}}, T_{\text{high}}\)) for optimal, connected edge curves.</li>
+                            <li><strong>Morphological Closing:</strong> Bridges microscopic edge gaps to guarantee sealed, watertight object boundaries ("Perfect Detection").</li>
+                        </ul>
+                    </li>
+                    <li><strong>3. Extract Contours & Shape Representation:</strong> Uses topological border following to extract closed contour coordinates. Evaluates perimeter (\(L\)), area (\(A\)), circularity (\(4\pi A / L^2\)), Douglas-Peucker polygon vertices, and image moments for shape classification (Circle, Triangle, Rectangle, Square, Polygon).</li>
+                    <li><strong>4. Draw Object Boundaries:</strong> Renders boundary contours with customizable colors, line thicknesses, bounding boxes, centroid pins, and classification tags.</li>
+                </ol>
+            </div>
+            <div style="display: flex; justify-content: flex-end; margin-top: 1.25rem;">
+                <button class="btn-primary" onclick="document.getElementById('helpModal').style.display='none';">Got it!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="toast"></div>
+
+    <!-- OpenCV.js Library (Async Load) -->
+    <script async src="https://docs.opencv.org/4.x/opencv.js" onload="if(window.EdgeDetectorInstance) window.EdgeDetectorInstance.initOpenCV();"></script>
+    <!-- Application Scripts -->
+    <script src="js/edge_detector.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
